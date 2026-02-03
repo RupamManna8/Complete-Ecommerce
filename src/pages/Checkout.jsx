@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
+const razorpay_key = import.meta.env.Razorpay_Key;
 
 export const Checkout = () => {
   const { theme, serverUrl, checkoutItems, user } = useContext(AuthContext);
@@ -328,7 +329,7 @@ export const Checkout = () => {
 
     try {
       const options = {
-        key: "rzp_test_YRDCHhLg4FzOnX", // use env in production
+        key: razorpay_key, // use env in production
         amount: Math.round(total * 100),
         currency: "INR",
         name: "My Store",
