@@ -6,7 +6,7 @@ import './index.css';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import App from './App.jsx';
 
-const id = "76040923483-512i2pt2qokupqfvvheq1j2ec4unpj5q.apps.googleusercontent.com"
+const id = import.meta.env.google_clint_id;
 
 const container = document.getElementById('root');
 const root = createRoot(container);
