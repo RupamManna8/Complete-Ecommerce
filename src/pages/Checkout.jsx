@@ -7,7 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
-const razorpay_key = import.meta.env.Razorpay_Key;
+const razorpay_key = import.meta.env.VITE_RAZORPAY_KEY;
 
 export const Checkout = () => {
   const { theme, serverUrl, checkoutItems, user } = useContext(AuthContext);

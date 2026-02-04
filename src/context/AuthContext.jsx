@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
-const serverUrl = import.meta.env.Server_Url
+const serverUrl = import.meta.env.VITE_SERVER_URL;
+console.log(serverUrl);
 
 export const AuthContext = createContext();
 

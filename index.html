@@ -2,12 +2,57 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>New chat</title>
+    
+    <title>UrbanVoltt | Style. Speed. Delivered.</title>
+    <meta name="description" content="UrbanVoltt - Your destination for high-energy fashion and urban electronics. Shop the latest trends with lightning-fast delivery." />
+    <meta name="theme-color" content="#0f172a" />
+
+    <link rel="icon" type="image/png" href="./public/logo.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+      :root {
+        --uv-dark: #0f172a;   /* Midnight Navy */
+        --uv-blue: #3b82f6;   /* Electric Blue */
+        --uv-orange: #f97316; /* Volt Orange */
+        --uv-light: #f8fafc;  /* Off White */
+      }
+
+      body {
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        background-color: var(--uv-dark);
+        color: var(--uv-light);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Simple centering for the loading state */
+      #root {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      
+      /* Styles for the loading spinner if JS is slow */
+      .initial-loader {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: 600;
+        color: var(--uv-orange);
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="initial-loader">Loading UrbanVoltt...</div>
+    </div>
+    
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
