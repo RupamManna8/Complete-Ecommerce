@@ -1,53 +1,121 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <!-- ===================== -->
+    <!-- BASIC META -->
+    <!-- ===================== -->
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
-    <title>UrbanVoltt | Style. Speed. Delivered.</title>
-    <meta name="description" content="UrbanVoltt - Your destination for high-energy fashion and urban electronics. Shop the latest trends with lightning-fast delivery." />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>UrbanVoltt — Style. Speed. Delivered.</title>
+    <meta
+      name="description"
+      content="UrbanVoltt is your destination for high-energy urban fashion and electronics. Shop the latest trends with lightning-fast delivery."
+    />
+    <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#0f172a" />
 
-    <link rel="icon" type="image/png" href="./public/logo1.png" />
+    <!-- ===================== -->
+    <!-- CANONICAL -->
+    <!-- ===================== -->
+    <link rel="canonical" href="https://urbanvoltt-ecom.vercel.app/" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- ===================== -->
+    <!-- FAVICONS (SQUARE ONLY) -->
+    <!-- ===================== -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/logo1.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/logo1.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/logo1.png" />
+    <!-- ===================== -->
+    <!-- OPEN GRAPH (SOCIAL SEO) -->
+    <!-- ===================== -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="UrbanVoltt — Style. Speed. Delivered." />
+    <meta
+      property="og:description"
+      content="High-energy urban fashion and electronics delivered fast. Discover UrbanVoltt."
+    />
+    <meta property="og:url" content="https://urbanvoltt-ecom.vercel.app/" />
+    <meta property="og:site_name" content="UrbanVoltt" />
 
+    <!-- ===================== -->
+    <!-- TWITTER / X -->
+    <!-- ===================== -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="UrbanVoltt — Style. Speed. Delivered." />
+    <meta
+      name="twitter:description"
+      content="Urban fashion and electronics with lightning-fast delivery."
+    />
+    
+
+    <!-- ===================== -->
+    <!-- FONTS (PERFORMANCE) -->
+    <!-- ===================== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- ===================== -->
+    <!-- STRUCTURED DATA (JSON-LD) -->
+    <!-- ===================== -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Brand",
+        "name": "UrbanVoltt",
+        "url": "https://www.urbanvoltt.com/",
+        "logo": "https://www.urbanvoltt.com/favicon-180x180.png",
+        "slogan": "Style. Speed. Delivered."
+      }
+    </script>
+
+    <!-- ===================== -->
+    <!-- BASE STYLES -->
+    <!-- ===================== -->
     <style>
-
-
       body {
         margin: 0;
         font-family: 'Inter', sans-serif;
-        background-color: var(--uv-dark);
-        color: var(--uv-light);
         -webkit-font-smoothing: antialiased;
       }
 
-      /* Simple centering for the loading state */
       #root {
         min-height: 100vh;
         display: flex;
         flex-direction: column;
       }
-      
-      /* Styles for the loading spinner if JS is slow */
+
       .initial-loader {
         height: 100vh;
         display: flex;
         justify-content: center;
         align-items: center;
         font-weight: 600;
-        color: var(--uv-orange);
       }
     </style>
   </head>
+
   <body>
+    <!-- ===================== -->
+    <!-- SEO FALLBACK CONTENT -->
+    <!-- ===================== -->
+    <noscript>
+      <h1>UrbanVoltt</h1>
+      <p>
+        UrbanVoltt delivers high-energy urban fashion and electronics with speed
+        and style. Enable JavaScript to explore the full experience.
+      </p>
+    </noscript>
+
     <div id="root">
       <div class="initial-loader">Loading UrbanVoltt...</div>
     </div>
-    
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+

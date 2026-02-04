@@ -83,9 +83,9 @@ export const Navbar = () => {
             <div className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2" onClick={()=>setIsMenuOpen(false)}>
                 <img
-                  src="../../public/logo1.png"
+                  src="/logo1.png"
                   alt="Logo"
-                  className="h-10 w-10"
+                  className="h-[50px] w-[50px] rounded-full object-cover"
                 />
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">
                   urbanVolt
