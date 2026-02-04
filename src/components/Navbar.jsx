@@ -11,6 +11,7 @@ import {
   Moon,
   ShoppingBag,
 } from "lucide-react";
+
 import { Link, useNavigate } from "react-router-dom";
 import { useContext, useState, useRef } from "react";
 import { AuthContext } from "../context/AuthContext.jsx";
@@ -81,9 +82,10 @@ export const Navbar = () => {
             {/* ---------- LEFT SECTION ---------- */}
             <div className="flex items-center gap-8">
               <Link to="/" className="flex items-center gap-2" onClick={()=>setIsMenuOpen(false)}>
-                <ShoppingBag
-                  className="text-blue-600 dark:text-blue-400"
-                  size={28}
+                <img
+                  src="../../public/logo1.png"
+                  alt="Logo"
+                  className="h-10 w-10"
                 />
                 <span className="text-2xl font-bold text-gray-900 dark:text-white">
                   urbanVolt
