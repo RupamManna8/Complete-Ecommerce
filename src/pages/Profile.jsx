@@ -105,6 +105,7 @@ export const Profile = () => {
         { number:phone },
         { withCredentials: true }
       );
+      console.log(res.data)
       if(res.data.isValid){
          showToast("✅ Phone number verified!", "success");
          setIsPhoneVerified(true);
