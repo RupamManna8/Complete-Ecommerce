@@ -50,7 +50,7 @@ export const Cart = () => {
   const updateQuantityApi = useCallback(
     async (productId, quantity) => {
       try {
-        console.log("🚀 API HIT:", productId, quantity);
+        
 
         await fetch(`${serverUrl}/api/user/cart`, {
           method: "PUT",

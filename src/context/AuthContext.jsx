@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 const serverUrl = import.meta.env.VITE_SERVER_URL;
-console.log(serverUrl);
+
 
 export const AuthContext = createContext();
 
@@ -56,7 +56,7 @@ export const AuthProvider = ({ children }) => {
           setUser(data.user);
           setCartItems(data.user.cart);
           setWishlistItems(data.user.wishlist);
-          console.log("user:", data.user);
+          
         }
       } catch (error) {
         console.error("Error fetching user:", error);
@@ -81,7 +81,6 @@ export const AuthProvider = ({ children }) => {
       });
       const data = await response.json();
       if (data) {
-        console.log(data);
         setCartItems(data.user.cart);
         setWishlistItems(data.user.wishlist);
         setIsAuthenticated(true);
@@ -107,7 +106,7 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(true);
         setCartItems(response.data.user.cart);
         setWishlistItems(response.data.user.wishlist);
-        console.log(response.data.user);
+
         navigate("/");
       } else {
       }
@@ -150,7 +149,7 @@ export const AuthProvider = ({ children }) => {
       });
 
       const data = await response.json();
-      console.log("Signup response:", data);
+      
 
       if (!response.ok) {
         return { ok: false, message: data.message || "Signup failed" };

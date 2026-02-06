@@ -38,7 +38,7 @@ function ResetPassword() {
         setTokenValid(true);
 
         const expiresAt = res.data.expiresAt;
-        console.log("expiresAt:", expiresAt);
+       
 
         // convert ISO string → milliseconds
         const expiresAtMs = new Date(expiresAt).getTime();
@@ -48,7 +48,6 @@ function ResetPassword() {
           0
         );
 
-        console.log("remainingSeconds:", remainingSeconds);
 
         setTimeLeft(remainingSeconds);
       } catch (error) {

@@ -23,7 +23,7 @@ export const Wishlist = () => {
           credentials: "include",
         });
         const data = await res.json();
-        console.log("wislist: ", data);
+        
         if (res) setWishlistItems(data || []);
       } catch (err) {
         console.error("Error fetching wishlist:", err);
@@ -35,7 +35,7 @@ export const Wishlist = () => {
   // ✅ Check if item is in cart
   const isItemInCart=(itemId)=> {
     const result  = cartItems.some((item) => item.productId === itemId);
-    console.log(result)
+    
     return  result
   }
 

@@ -34,7 +34,7 @@ export const Signup = () => {
     setLoading(true);
 
     try {
-      console.log("ful:",fullName,"email:",email,"pass:",password)
+      
       const data = await signup(fullName, email, password);
       if(data.ok){
         showToast('Account created successfully!', 'success');

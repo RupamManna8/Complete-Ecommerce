@@ -15,7 +15,7 @@ export const History = () => {
         withCredentials: true,
       });
       setHistory(res.data || []);
-      console.log(res);
+      
     } catch (err) {
       console.error(err);
     }
