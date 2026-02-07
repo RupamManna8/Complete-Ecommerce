@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   User,
@@ -13,6 +13,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { Button } from "../components/ui/Button.jsx";
 import { Input } from "../components/ui/Input.jsx";
 import { useToast } from "../components/ui/Toast.jsx";
+import PinValidator from '../service/fetchAddress.js'
 import axios from "axios";
 
 export const Profile = () => {
@@ -25,6 +26,8 @@ export const Profile = () => {
   const [addresses, setAddresses] = useState([]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [fetchedAddressData, setFetchedAddressData] = useState(null);
+  const [isLoadingPincode, setIsLoadingPincode] = useState(false);
 
   const [profileData, setProfileData] = useState({
     name: user?.name || "",
@@ -40,6 +43,79 @@ export const Profile = () => {
     state: "",
     pincode: "",
   });
+
+  // Debounce function
+  const debounce = (func, delay) => {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  // Fetch address by pincode with debounce
+  const fetchAddressByPincode = async (pincode) => {
+    if (!pincode || pincode.length !== 6) {
+      setFetchedAddressData(null);
+      setNewAddress(prev => ({ ...prev, state: "", city: "" }));
+      return;
+    }
+
+    setIsLoadingPincode(true);
+    try {
+      const res = await PinValidator(pincode);
+      if (res) {
+        setFetchedAddressData({
+          Blocks: res.Blocks || [],
+          Street: res.Street || [],
+          State: res.State || ""
+        });
+        
+        // Auto-fill state if available
+        if (res.State) {
+          setNewAddress(prev => ({ ...prev, state: res.State }));
+        }
+        
+        showToast("✅ Address details fetched successfully", "success");
+      }
+    } catch (err) {
+      console.log(err);
+      showToast("❌ Invalid pincode or unable to fetch address", "error");
+      setFetchedAddressData(null);
+    } finally {
+      setIsLoadingPincode(false);
+    }
+  };
+
+  // Debounced version of fetchAddressByPincode
+  const debouncedFetchAddress = useCallback(
+    debounce((pincode) => {
+      fetchAddressByPincode(pincode);
+    }, 500),
+    []
+  );
+
+  // Handle pincode change
+  const handlePincodeChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setNewAddress({ 
+      ...newAddress, 
+      pincode: value,
+      state: "",
+      city: "",
+      street: ""
+    });
+    
+    // Clear fetched data when pincode changes
+    if (value.length !== 6) {
+      setFetchedAddressData(null);
+    }
+    
+    // Trigger debounced fetch if pincode is complete
+    if (value.length === 6) {
+      debouncedFetchAddress(value);
+    }
+  };
 
   // ✅ Fetch addresses
   useEffect(() => {
@@ -102,16 +178,15 @@ export const Profile = () => {
     if (phoneRegex.test(phone)) {
       const res = await axios.post(
         `${serverUrl}/api/auth/phone-check`,
-        { number:phone },
+        { number: phone },
         { withCredentials: true }
       );
-      console.log(res.data)
+      console.log(res)
       if(res.data.isValid){
          showToast("✅ Phone number verified!", "success");
          setIsPhoneVerified(true);
       }
       setIsVerifying(false)
-     
     } else {
       showToast("❌ Invalid phone number", "error");
       setIsPhoneVerified(false);
@@ -124,6 +199,12 @@ export const Profile = () => {
   const handleAddAddress = async () => {
     if (!isPhoneVerified) {
       showToast("Please verify the phone number before saving", "error");
+      return;
+    }
+
+    // Validate required fields
+    if (!newAddress.name || !newAddress.city || !newAddress.street) {
+      showToast("Please fill all address fields", "error");
       return;
     }
 
@@ -145,6 +226,7 @@ export const Profile = () => {
         pincode: "",
       });
       setIsPhoneVerified(false);
+      setFetchedAddressData(null);
     } catch (err) {
       showToast("Failed to add address", "error");
       console.error(err);
@@ -310,16 +392,45 @@ export const Profile = () => {
             {isAddingAddress && (
               <div className="border border-gray-300 dark:border-gray-700 rounded-lg p-4 mb-4">
                 <div className="grid grid-cols-2 gap-3">
+                  {/* Pincode Field (First and Required) */}
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Pincode *
+                    </label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        type="text"
+                        value={newAddress.pincode}
+                        onChange={handlePincodeChange}
+                        className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Enter 6-digit pincode"
+                        maxLength="6"
+                      />
+                      {isLoadingPincode && (
+                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                      )}
+                      {fetchedAddressData && !isLoadingPincode && (
+                        <span className="text-green-600 text-sm">✅ Valid</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Enter pincode first to auto-fill address details
+                    </p>
+                  </div>
+
                   <Input
-                    label="Name"
+                    label="Name *"
                     value={newAddress.name}
                     onChange={(e) =>
                       setNewAddress({ ...newAddress, name: e.target.value })
                     }
+                    disabled={!fetchedAddressData}
                   />
+                  
+                  {/* Phone Number Field */}
                   <div>
                     <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Phone Number
+                      Phone Number *
                     </label>
                     <div className="flex gap-2 mt-1">
                       <input
@@ -334,15 +445,17 @@ export const Profile = () => {
                         }}
                         className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="Enter 10-digit number"
+                        disabled={!fetchedAddressData}
+                        maxLength="10"
                       />
                       <Button
                         type="button"
                         variant="outline"
                         onClick={handleVerifyPhone}
-                        disabled={isVerifying}
+                        disabled={isVerifying || !fetchedAddressData || newAddress.phone.length !== 10}
                       >
                         {isVerifying ? (
-                          <motion.div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                         ) : isPhoneVerified ? (
                           "Verified ✅"
                         ) : (
@@ -352,43 +465,89 @@ export const Profile = () => {
                     </div>
                   </div>
 
-                  <Input
-                    label="Street"
-                    value={newAddress.street}
-                    onChange={(e) =>
-                      setNewAddress({ ...newAddress, street: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="City"
-                    value={newAddress.city}
-                    onChange={(e) =>
-                      setNewAddress({ ...newAddress, city: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="State"
-                    value={newAddress.state}
-                    onChange={(e) =>
-                      setNewAddress({ ...newAddress, state: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="Zip Code"
-                    value={newAddress.pincode}
-                    onChange={(e) =>
-                      setNewAddress({ ...newAddress, pincode: e.target.value })
-                    }
-                  />
+                  {/* State Field (Auto-filled) */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      State *
+                    </label>
+                    <input
+                      type="text"
+                      value={fetchedAddressData?.State || newAddress.state}
+                      readOnly
+                      className="w-full mt-1 border rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-700 cursor-not-allowed"
+                      placeholder="Will auto-fill from pincode"
+                    />
+                  </div>
+
+                  {/* City/District Field (Dropdown) */}
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      City/District *
+                    </label>
+                    <select
+                      value={newAddress.city}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, city: e.target.value })
+                      }
+                      className="w-full mt-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!fetchedAddressData || !fetchedAddressData.Blocks.length}
+                      required
+                    >
+                      <option value="">Select City/District</option>
+                      {fetchedAddressData?.Blocks.map((block, index) => (
+                        <option key={index} value={block}>
+                          {block}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Street/Locality Field (Dropdown) */}
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Street/Locality *
+                    </label>
+                    <select
+                      value={newAddress.street}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, street: e.target.value })
+                      }
+                      className="w-full mt-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={!fetchedAddressData || !fetchedAddressData.Street.length}
+                      required
+                    >
+                      <option value="">Select Street/Locality</option>
+                      {fetchedAddressData?.Street.map((street, index) => (
+                        <option key={index} value={street}>
+                          {street}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="flex gap-2 mt-4 justify-end">
-                  <Button onClick={handleAddAddress} disabled={!isPhoneVerified}>
+                  <Button 
+                    onClick={handleAddAddress} 
+                    disabled={!isPhoneVerified || !fetchedAddressData}
+                  >
                     <Save className="w-4 h-4 mr-2" /> Save Address
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setIsAddingAddress(false)}
+                    onClick={() => {
+                      setIsAddingAddress(false);
+                      setNewAddress({
+                        name: "",
+                        phone: "",
+                        street: "",
+                        city: "",
+                        state: "",
+                        pincode: "",
+                      });
+                      setIsPhoneVerified(false);
+                      setFetchedAddressData(null);
+                    }}
                   >
                     Cancel
                   </Button>

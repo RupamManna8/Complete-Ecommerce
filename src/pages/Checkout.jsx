@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import { AuthContext } from "../context/AuthContext";
+import PinValidator from "../service/fetchAddress";
 const razorpay_key = import.meta.env.VITE_RAZORPAY_KEY;
 
 export const Checkout = () => {
@@ -22,6 +23,8 @@ export const Checkout = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [fetchedAddressData, setFetchedAddressData] = useState(null);
+  const [isLoadingPincode, setIsLoadingPincode] = useState(false);
 
   const [shippingInfo, setShippingInfo] = useState({
     name: "",
@@ -90,9 +93,88 @@ export const Checkout = () => {
           pincode: selected.pincode || "",
           country: selected.country || "India",
         });
+        setIsPhoneVerified(true); // Assume saved addresses are verified
       }
     }
   }, [selectedAddressId, isAddingNew, addresses]);
+
+  // Debounce function
+  const debounce = (func, delay) => {
+    let timer;
+    return (...args) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => func(...args), delay);
+    };
+  };
+
+  // Fetch address by pincode with debounce
+  const fetchAddressByPincode = async (pincode) => {
+    if (!pincode || pincode.length !== 6) {
+      setFetchedAddressData(null);
+      setShippingInfo(prev => ({ 
+        ...prev, 
+        state: "", 
+        city: "",
+        street: "" 
+      }));
+      return;
+    }
+
+    setIsLoadingPincode(true);
+    try {
+      const res = await PinValidator(pincode);
+      if (res) {
+        setFetchedAddressData({
+          Blocks: res.Blocks || [],
+          Street: res.Street || [],
+          State: res.State || ""
+        });
+        
+        // Auto-fill state if available
+        if (res.State) {
+          setShippingInfo(prev => ({ ...prev, state: res.State }));
+        }
+        
+        showToast("✅ Address details fetched successfully", "success");
+      }
+    } catch (err) {
+      console.log(err);
+      showToast("❌ Invalid pincode or unable to fetch address", "error");
+      setFetchedAddressData(null);
+    } finally {
+      setIsLoadingPincode(false);
+    }
+  };
+
+  // Debounced version of fetchAddressByPincode
+  const debouncedFetchAddress = useCallback(
+    debounce((pincode) => {
+      fetchAddressByPincode(pincode);
+    }, 500),
+    []
+  );
+
+  // Handle pincode change
+  const handlePincodeChange = (e) => {
+    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+    setShippingInfo({ 
+      ...shippingInfo, 
+      pincode: value,
+      state: "",
+      city: "",
+      street: ""
+    });
+    
+    // Clear fetched data when pincode changes
+    if (value.length !== 6) {
+      setFetchedAddressData(null);
+    }
+    
+    // Trigger debounced fetch if pincode is complete
+    if (value.length === 6) {
+      debouncedFetchAddress(value);
+    }
+  };
 
   // PHONE VERIFICATION
   const handleVerifyPhone = async () => {
@@ -118,7 +200,7 @@ export const Checkout = () => {
         { number: phone },
         { withCredentials: true }
       );
-
+      console.log(res)
       if (res?.data?.isValid) {
         setIsPhoneVerified(true);
         showToast("✅ Phone number verified successfully!", "success");
@@ -145,6 +227,18 @@ export const Checkout = () => {
   }, []);
 
   const handleOpenBotPopup = () => {
+    // Check if we're adding new address and if it's valid
+    if (isAddingNew && (!fetchedAddressData || !isPhoneVerified)) {
+      showToast("Please complete the address details first", "error");
+      return;
+    }
+    
+    // Check if address is selected when not adding new
+    if (!isAddingNew && !selectedAddressId) {
+      showToast("Please select or add a shipping address", "error");
+      return;
+    }
+    
     generateBotCode();
     setShowBotPopup(true);
   };
@@ -216,6 +310,11 @@ export const Checkout = () => {
       return;
     }
 
+    if (!fetchedAddressData) {
+      showToast("Please enter a valid pincode first", "error");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await axios.post(
@@ -231,9 +330,18 @@ export const Checkout = () => {
       }
       
       setAddresses(newAddress);
-      setSelectedAddressId(newAddress._id);
+      // Find the newly added address by pincode and name
+      const savedAddr = newAddress.find(addr => 
+        addr.pincode === shippingInfo.pincode && 
+        addr.name === shippingInfo.name
+      );
+      if (savedAddr) {
+        setSelectedAddressId(savedAddr._id);
+      }
       setIsAddingNew(false);
       showToast("Address saved successfully", "success");
+      // Reset fetched data
+      setFetchedAddressData(null);
     } catch (error) {
       console.error("Save address error:", error);
       showToast("Error saving address", "error");
@@ -246,10 +354,18 @@ export const Checkout = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // basic validation
-    if (!shippingInfo.name || !shippingInfo.phone || !shippingInfo.street) {
-      showToast("Please fill out all required shipping fields", "error");
-      return;
+    // If adding new address, ensure it's valid
+    if (isAddingNew) {
+      if (!fetchedAddressData || !isPhoneVerified) {
+        showToast("Please complete and verify the new address first", "error");
+        return;
+      }
+    } else {
+      // If not adding new, ensure an address is selected
+      if (!selectedAddressId) {
+        showToast("Please select a shipping address", "error");
+        return;
+      }
     }
 
     // If online payment selected, use razorpay flow
@@ -329,7 +445,7 @@ export const Checkout = () => {
 
     try {
       const options = {
-        key: razorpay_key, // use env in production
+        key: razorpay_key,
         amount: Math.round(total * 100),
         currency: "INR",
         name: "My Store",
@@ -427,6 +543,7 @@ export const Checkout = () => {
                       country: "India",
                     });
                     setIsPhoneVerified(false);
+                    setFetchedAddressData(null);
                   }}
                   className="flex items-center text-blue-600 hover:text-blue-800"
                 >
@@ -434,11 +551,11 @@ export const Checkout = () => {
                 </button>
               </div>
 
-              {addresses.length > 0 && (
+              {addresses.length > 0 && !isAddingNew && (
                 <div className="space-y-3 mb-4">
                   {addresses.map((addr) => (
                     <label
-                      key={addr._id || Math.floor(Math.random() * 1000) + 1} 
+                      key={addr._id || Math.floor(Math.random() * 1000) + 1}
                       className={`flex items-start gap-3 border rounded-lg p-4 cursor-pointer transition ${
                         selectedAddressId === addr._id
                           ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20"
@@ -478,6 +595,32 @@ export const Checkout = () => {
                     Add New Address
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Pincode Field (First and Required) */}
+                    <div className="col-span-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Pincode *
+                      </label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="text"
+                          value={shippingInfo.pincode}
+                          onChange={handlePincodeChange}
+                          className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                          placeholder="Enter 6-digit pincode"
+                          maxLength="6"
+                        />
+                        {isLoadingPincode && (
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        )}
+                        {fetchedAddressData && !isLoadingPincode && (
+                          <span className="text-green-600 text-sm">✅ Valid</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Enter pincode first to auto-fill address details
+                      </p>
+                    </div>
+
                     <Input
                       label="Full Name *"
                       value={shippingInfo.name}
@@ -486,6 +629,7 @@ export const Checkout = () => {
                       }
                       required
                       theme={theme}
+                      disabled={!fetchedAddressData}
                     />
 
                     <div className="flex gap-2 items-end">
@@ -500,65 +644,126 @@ export const Checkout = () => {
                         required
                         className="flex-1"
                         theme={theme}
+                        disabled={!fetchedAddressData}
                       />
                       <Button
                         type="button"
                         onClick={handleVerifyPhone}
-                        disabled={isVerifying}
+                        disabled={isVerifying || !fetchedAddressData || shippingInfo.phone.length !== 10}
+                        size="sm"
                       >
-                        {isVerifying ? "Verifying..." : isPhoneVerified ? "Verified ✅" : "Verify"}
+                        {isVerifying ? (
+                          <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        ) : isPhoneVerified ? (
+                          "Verified ✅"
+                        ) : (
+                          "Verify"
+                        )}
                       </Button>
                     </div>
 
-                    <Input
-                      label="Street *"
-                      value={shippingInfo.street}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, street: e.target.value })
-                      }
-                      required
-                      className="md:col-span-2"
-                      theme={theme}
-                    />
-                    <Input
-                      label="City *"
-                      value={shippingInfo.city}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, city: e.target.value })
-                      }
-                      required
-                      theme={theme}
-                    />
-                    <Input
-                      label="State *"
-                      value={shippingInfo.state}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, state: e.target.value })
-                      }
-                      required
-                      theme={theme}
-                    />
-                    <Input
-                      label="ZIP Code *"
-                      value={shippingInfo.pincode}
-                      onChange={(e) =>
-                        setShippingInfo({ ...shippingInfo, pincode: e.target.value })
-                      }
-                      required
-                      theme={theme}
-                    />
+                    {/* State Field (Auto-filled) */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        State *
+                      </label>
+                      <input
+                        type="text"
+                        value={fetchedAddressData?.State || shippingInfo.state}
+                        readOnly
+                        className="w-full mt-1 border rounded-lg px-3 py-2 bg-gray-50 dark:bg-gray-700 cursor-not-allowed dark:border-gray-600 dark:text-white"
+                        placeholder="Will auto-fill from pincode"
+                      />
+                    </div>
+
+                    {/* City/District Field (Dropdown) */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        City/District *
+                      </label>
+                      <select
+                        value={shippingInfo.city}
+                        onChange={(e) =>
+                          setShippingInfo({ ...shippingInfo, city: e.target.value })
+                        }
+                        className="w-full mt-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        disabled={!fetchedAddressData || !fetchedAddressData.Blocks.length}
+                        required
+                      >
+                        <option value="">Select City/District</option>
+                        {fetchedAddressData?.Blocks.map((block, index) => (
+                          <option key={index} value={block}>
+                            {block}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Street/Locality Field (Dropdown) */}
+                    <div className="col-span-2">
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Street/Locality *
+                      </label>
+                      <select
+                        value={shippingInfo.street}
+                        onChange={(e) =>
+                          setShippingInfo({ ...shippingInfo, street: e.target.value })
+                        }
+                        className="w-full mt-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        disabled={!fetchedAddressData || !fetchedAddressData.Street.length}
+                        required
+                      >
+                        <option value="">Select Street/Locality</option>
+                        {fetchedAddressData?.Street.map((street, index) => (
+                          <option key={index} value={street}>
+                            {street}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     <Input 
                       label="Country" 
                       value="India" 
                       disabled 
                       theme={theme}
+                      className="col-span-2"
                     />
                   </div>
 
-                  <div className="mt-5 flex justify-end">
-                    <Button type="button" onClick={handleSaveAddress} disabled={isSaving}>
+                  <div className="mt-5 flex justify-end gap-3">
+                    <Button 
+                      type="button" 
+                      onClick={handleSaveAddress} 
+                      disabled={isSaving || !fetchedAddressData || !isPhoneVerified}
+                    >
                       {isSaving ? "Saving..." : "Save Address"}
                       <Save className="ml-2 w-4 h-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddingNew(false);
+                        setFetchedAddressData(null);
+                        // Restore selected address if exists
+                        if (selectedAddressId) {
+                          const selected = addresses.find(a => a._id === selectedAddressId);
+                          if (selected) {
+                            setShippingInfo({
+                              name: selected.name || "",
+                              phone: selected.phone || "",
+                              street: selected.street || "",
+                              city: selected.city || "",
+                              state: selected.state || "",
+                              pincode: selected.pincode || "",
+                              country: selected.country || "India",
+                            });
+                          }
+                        }
+                      }}
+                    >
+                      Cancel
                     </Button>
                   </div>
                 </motion.div>
@@ -656,9 +861,20 @@ export const Checkout = () => {
                 </div>
               </div>
 
-              <Button type="button" className="w-full text-lg py-3" onClick={handleOpenBotPopup}>
+              <Button 
+                type="button" 
+                className="w-full text-lg py-3" 
+                onClick={handleOpenBotPopup}
+                disabled={isAddingNew && (!fetchedAddressData || !isPhoneVerified)}
+              >
                 Place Order
               </Button>
+              
+              {isAddingNew && (!fetchedAddressData || !isPhoneVerified) && (
+                <p className="text-xs text-red-500 mt-2 text-center">
+                  Complete address verification first
+                </p>
+              )}
             </div>
           </motion.div>
         </div>
