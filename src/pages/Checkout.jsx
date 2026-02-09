@@ -25,6 +25,7 @@ export const Checkout = () => {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [fetchedAddressData, setFetchedAddressData] = useState(null);
   const [isLoadingPincode, setIsLoadingPincode] = useState(false);
+  const [isBotVerified, setIsBotVerified] = useState(false);
 
   const [shippingInfo, setShippingInfo] = useState({
     name: "",
@@ -284,6 +285,8 @@ export const Checkout = () => {
           const fakeEvent = { preventDefault: () => {} };
           handleSubmit(fakeEvent);
         }, 350);
+
+        return true;
       } else {
         showToast("❌ Incorrect code, please try again.", "error");
         generateBotCode();
@@ -359,6 +362,8 @@ export const Checkout = () => {
   // SUBMIT ORDER
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isVerifying || isSaving || isVerifyingBot) return;
+    
 
     // If adding new address, ensure it's valid
     if (isAddingNew) {
@@ -373,6 +378,7 @@ export const Checkout = () => {
         return;
       }
     }
+    
 
     // If online payment selected, use razorpay flow
     if (selectedPayment === "razorpay") {
@@ -438,17 +444,17 @@ export const Checkout = () => {
     loadRazorpayScript();
   }, [serverUrl]);
 
-  const handleRazorpay = async () => {
+  const handleRazorpay = async (payload) => {
     const loaded = await loadRazorpayScript();
     if (!loaded) {
       showToast("Unable to load payment gateway. Try again later.", "error");
       return;
     }
-
+  
     const today = new Date();
     const dateAfter7Days = new Date(today);
     dateAfter7Days.setDate(today.getDate() + 7);
-
+  
     try {
       const options = {
         key: razorpay_key,
@@ -458,27 +464,19 @@ export const Checkout = () => {
         description: "Order Payment",
         handler: async function (response) {
           try {
-            const payload = {
-              products: checkoutItems.map((item) => ({
-                product: item.productId,
-                quantity: item.productQuantity,
-                price: item.productPrice,
-                name: item.productName,
-                picture: item.productImage,
-              })),
-              shippingAddress: shippingInfo,
-              paymentMode: "Online",
-              totalPrice: total,
+            // Update payload with payment details
+            const updatedPayload = {
+              ...payload,
               paymentStatus: true,
               paymentId: response.razorpay_payment_id,
               paymentDate: new Date(),
               deliveryDate: dateAfter7Days,
             };
-
-            const res = await axios.post(`${serverUrl}/api/orders`, payload, {
+  
+            const res = await axios.post(`${serverUrl}/api/orders`, updatedPayload, {
               withCredentials: true,
             });
-
+  
             if (res.data?.ok || res.status === 201) {
               showToast("Payment successful! Order placed.", "success");
               setShowSuccessModal(true);
@@ -498,10 +496,70 @@ export const Checkout = () => {
           contact: shippingInfo.phone,
         },
         theme: { color: "#2563eb" },
+        // Payment cancellation handler
+        modal: {
+          ondismiss: function() {
+            showToast("Payment cancelled by user", "info");
+            console.log("Payment modal dismissed");
+          }
+        },
+        // Additional error handlers
+        "modal.onClose": function() {
+          console.log("Payment modal closed");
+        }
       };
-
+  
       const rzp = new window.Razorpay(options);
+      
+      // Handle payment errors
+      rzp.on('payment.failed', function(response) {
+        console.error('Payment failed:', response.error);
+        
+        let errorMessage = "Payment failed";
+        if (response.error && response.error.description) {
+          errorMessage = `Payment failed: ${response.error.description}`;
+        }
+        
+        showToast(errorMessage, "error");
+        
+        // Optional: Create order with failed payment status
+        try {
+          const failedPayload = {
+            products: checkoutItems.map((item) => ({
+              product: item.productId,
+              quantity: item.productQuantity,
+              price: item.productPrice,
+              name: item.productName,
+              picture: item.productImage,
+            })),
+            shippingAddress: shippingInfo,
+            paymentMode: "Online",
+            totalPrice: total,
+            paymentStatus: false,
+            paymentId: response.error.metadata?.payment_id || "failed_" + Date.now(),
+            paymentDate: new Date(),
+            deliveryDate: dateAfter7Days,
+            paymentError: response.error,
+          };
+          
+          // You can optionally save this failed payment attempt to your database
+          // axios.post(`${serverUrl}/api/payments/failed`, failedPayload, {
+          //   withCredentials: true,
+          // });
+          
+        } catch (err) {
+          console.error("Failed to record failed payment:", err);
+        }
+      });
+      
+      // Handle payment closed (user clicked close button or ESC)
+      rzp.on('modal.closed', function() {
+        console.log("Payment modal closed by user");
+        // You can add any cleanup logic here
+      });
+      
       rzp.open();
+      
     } catch (err) {
       console.error("Razorpay flow error:", err);
       showToast("Payment failed to initialize", "error");
@@ -728,14 +786,22 @@ export const Checkout = () => {
                   </div>
 
                   <div className="mt-5 flex flex-col sm:flex-row justify-end gap-3">
-                    <Button type="button" className="w-full sm:w-auto">
+                    <Button
+                      type="button"
+                      className="w-full sm:w-auto"
+                      onClick={() => {
+                        handleSaveAddress();
+                      }}
+                    >
                       Save Address
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
                       className="w-full sm:w-auto"
-                    >
+                      onClick={() => {
+                        setIsAddingNew(false);
+                      }}                  >
                       Cancel
                     </Button>
                   </div>
@@ -755,16 +821,49 @@ export const Checkout = () => {
                 Payment Method
               </h2>
 
-              <div className="space-y-3 text-sm sm:text-base">
-                <label className="flex items-center gap-3">
-                  <input type="radio" className="accent-blue-600" />
-                  Cash on Delivery (COD)
-                </label>
-                <label className="flex items-center gap-3">
-                  <input type="radio" className="accent-blue-600" />
-                  Razorpay (Online Payment)
-                </label>
-              </div>
+              {/* Payment Options - FIXED */}
+              <motion.div
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <Wallet className="text-blue-600" size={24} />
+                  <h2 className={`text-2xl font-bold ${textPrimary}`}>
+                    Payment Method
+                  </h2>
+                </div>
+                <div className="space-y-3">
+                  <label
+                    className={`flex items-center gap-3 cursor-pointer ${textSecondary}`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="cod"
+                      checked={selectedPayment === "cod"}
+                      onChange={() => setSelectedPayment("cod")}
+                      className="accent-blue-600"
+                    />
+                    <span className="font-medium">Cash on Delivery (COD)</span>
+                  </label>
+                  <label
+                    className={`flex items-center gap-3 cursor-pointer ${textSecondary}`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value="razorpay"
+                      checked={selectedPayment === "razorpay"}
+                      onChange={() => setSelectedPayment("razorpay")}
+                      className="accent-blue-600"
+                    />
+                    <span className="font-medium">
+                      Razorpay (Online Payment)
+                    </span>
+                  </label>
+                </div>
+              </motion.div>
             </motion.div>
           </div>
 
@@ -802,11 +901,122 @@ export const Checkout = () => {
                 ))}
               </div>
 
-              <Button className="w-full text-base sm:text-lg py-3">
+              <Button className="w-full text-base sm:text-lg py-3"
+              onClick={handleOpenBotPopup}>
                 Place Order
               </Button>
             </div>
           </motion.div>
+          {/* Bot Verification Popup */}
+          <AnimatePresence>
+            {showBotPopup && (
+              <motion.div
+                data-backdrop="true"
+                onClick={handleBackdropClick}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                  className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl p-8 w-[90%] max-w-sm text-center relative"
+                >
+                  <h2 className={`text-2xl font-bold ${textPrimary} mb-3`}>
+                    🤖 Bot Verification
+                  </h2>
+                  <p className={`text-sm ${textMuted} mb-4`}>
+                    Enter the code below to confirm you're human.
+                  </p>
+
+                  <div className="select-none text-3xl font-extrabold tracking-widest text-blue-600 bg-blue-50 dark:bg-gray-800 py-3 rounded-lg mb-5">
+                    {botCode}
+                  </div>
+
+                  <Input
+                    placeholder="Type the code shown above"
+                    value={userBotInput}
+                    onChange={(e) => setUserBotInput(e.target.value)}
+                    className="mb-4"
+                    theme={theme}
+                  />
+
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      onClick={handleVerifyBotCode}
+                      disabled={isVerifyingBot}
+                      className="flex-1"
+                    >
+                      {isVerifyingBot ? "Verifying..." : "Verify & Continue"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => generateBotCode()}
+                      className="px-4"
+                    >
+                      🔄
+                    </Button>
+                  </div>
+
+                  <button
+                    className={`absolute top-3 right-4 ${
+                      theme === "dark"
+                        ? "text-gray-400 hover:text-gray-200"
+                        : "text-gray-500 hover:text-gray-800"
+                    }`}
+                    onClick={() => setShowBotPopup(false)}
+                    aria-label="Close verification popup"
+                  >
+                    ✕
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Success overlay (no external modal) */}
+          <AnimatePresence>
+            {showSuccessModal && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
+              >
+                <motion.div
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 10, opacity: 0 }}
+                  className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-lg w-[90%] max-w-sm text-center"
+                >
+                  <div className="text-4xl mb-2">🎉</div>
+                  <h3 className={`text-xl font-semibold mb-2 ${textPrimary}`}>
+                    Order Placed
+                  </h3>
+                  <p className={`text-sm ${textMuted} mb-4`}>
+                    Your order was placed successfully — redirecting to order
+                    history.
+                  </p>
+                  <div className="flex justify-center">
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setShowSuccessModal(false);
+                        navigate("/history");
+                      }}
+                    >
+                      Go to Orders
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </form>
     </div>
