@@ -17,7 +17,6 @@ export const History = () => {
         withCredentials: true,
       });
       setHistory(res.data || []);
-      
     } catch (err) {
       console.error(err);
     }
@@ -101,7 +100,7 @@ export const History = () => {
                             src={p.picture}
                             alt={p.name}
                             className="w-12 h-12 object-cover rounded-md border border-gray-300 dark:border-gray-600"
-                            onClick={() => navigate(`/product/${p.productId}`)}
+                            onClick={() => navigate(`/product/${p.product}`)}
                           />
                           <span className="truncate">{p.name}</span>
                         </td>
@@ -126,11 +125,14 @@ export const History = () => {
                 </p>
               </div>
               <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-                Payment Status: {order.paymentStatus ? "Paid" : "Pending"}
+                Payment Status:{" "}
+                {order.paymentId.length > 10 ? "Paid" : "Pending"}
               </p>
-              <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
-                Payment ID: {order.paymentId}
-              </p>
+              {order.paymentId.length > 10 && (
+                <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
+                  Payment ID: {order.paymentId}
+                </p>
+              )}
               {/* Delivery Date */}
               {order.deliveryDate && (
                 <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm">
@@ -144,9 +146,11 @@ export const History = () => {
                     Shipping Address
                   </h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Phone: {order.shippingAddress.phone}, City: {order.shippingAddress.city},
-                    Street: {order.shippingAddress.street}, Zipcode: {order.shippingAddress.pincode},
-                    State: {order.shippingAddress.state}
+                    Phone: {order.shippingAddress.phone}, City:{" "}
+                    {order.shippingAddress.city}, Street:{" "}
+                    {order.shippingAddress.street}, Zipcode:{" "}
+                    {order.shippingAddress.pincode}, State:{" "}
+                    {order.shippingAddress.state}
                   </p>
                 </div>
               )}

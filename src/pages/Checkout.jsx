@@ -444,12 +444,24 @@ export const Checkout = () => {
     loadRazorpayScript();
   }, [serverUrl]);
 
-  const handleRazorpay = async (payload) => {
+  const handleRazorpay = async () => {
     const loaded = await loadRazorpayScript();
     if (!loaded) {
       showToast("Unable to load payment gateway. Try again later.", "error");
       return;
     }
+    const payload = {
+      products: checkoutItems.map((item) => ({
+        product: item.productId,
+        quantity: item.productQuantity,
+        price: item.productPrice,
+        name: item.productName,
+        picture: item.productImage,
+      })),
+      shippingAddress: shippingInfo,
+      paymentMode: "Online",
+      totalPrice: total,
+    };
   
     const today = new Date();
     const dateAfter7Days = new Date(today);
@@ -472,6 +484,8 @@ export const Checkout = () => {
               paymentDate: new Date(),
               deliveryDate: dateAfter7Days,
             };
+
+            console.log(payload)
   
             const res = await axios.post(`${serverUrl}/api/orders`, updatedPayload, {
               withCredentials: true,
