@@ -36,6 +36,19 @@ export const History = () => {
     }
   };
 
+  const claculateOrderStatus = (order) => {
+    const datLeft = Math.floor(
+      (new Date(order.deliveryDate) - new Date()) / (1000 * 60 * 60 * 24)
+    );
+    if (datLeft < 0) {
+      return "Delivered";
+    } else if (datLeft <= 3 && datLeft >= 0) {
+      return "Shipped";
+    } else {
+      return "Processing";
+    }
+  };
+
   useEffect(() => {
     fetchHistory();
   }, []);
@@ -72,10 +85,10 @@ export const History = () => {
                 </div>
                 <span
                   className={`px-3 py-1 rounded-full text-sm font-medium mt-2 sm:mt-0 ${getStatusColor(
-                    order.orderStatus
+                    claculateOrderStatus(order)
                   )}`}
                 >
-                  Order Status: {order.orderStatus}
+                  Order Status: {claculateOrderStatus(order)}
                 </span>
               </div>
 
