@@ -3,10 +3,12 @@ import { motion } from "framer-motion";
 import { Package } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export const History = () => {
   const { serverUrl } = useAuth();
   const [history, setHistory] = useState([]);
+  const navigate = useNavigate();
 
   // Fetch order history
   const fetchHistory = async () => {
@@ -99,6 +101,7 @@ export const History = () => {
                             src={p.picture}
                             alt={p.name}
                             className="w-12 h-12 object-cover rounded-md border border-gray-300 dark:border-gray-600"
+                            onClick={() => navigate(`/product/${p.productId}`)}
                           />
                           <span className="truncate">{p.name}</span>
                         </td>
