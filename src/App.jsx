@@ -86,42 +86,63 @@ const AuthLayout = () => (
 
 /* ------------------ AppContent ------------------ */
 function AppContent() {
-  const { isBackendReady } = useContext(AuthContext);
-  if (!isBackendReady) {
-    return <AppLoader />;
-  } else {
-    return (
-      <Suspense fallback={<AppLoader />}>
-        <Routes>
-          {/* MAIN APP LAYOUT */}
-          <Route element={<MainLayout />}>
-            <Route path="/" element={<Home />} />
-            <Route path="/products" element={<ProductListing />} />
-            <Route path="/products/:category" element={<ProductListing />} />
-            <Route path="/product/:id" element={<ProductDetails />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/history" element={<History />} />
-          </Route>
+  const { serverUrl } = useContext(AuthContext);
+  const [isReady, setIsReady] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-          {/* AUTH PAGES */}
-          <Route element={<AuthLayout />}>
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/auth/forget_password" element={<ForgetPassword />} />
-            <Route
-              path="/auth/reset_password/:id"
-              element={<ResetPassword />}
-            />
-          </Route>
+  useEffect(() => {
+    const checkServer = async () => {
+      try {
+        const res = await fetch(serverUrl);
+        const data = await res.json();
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
-    );
-  }
+        if (data.message === "done") {
+          setIsReady(true);
+        }
+      } catch (err) {
+        console.error("Server check failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkServer();
+  }, [serverUrl]);
+
+  // 🔹 Loader while checking server
+  if (loading) return <AppLoader />;
+
+  // 🔹 Optional: fallback if server not ready
+  if (!isReady) return <div>Server not ready</div>;
+
+  return (
+    <Suspense fallback={<AppLoader />}>
+      <Routes>
+        {/* MAIN APP LAYOUT */}
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/products" element={<ProductListing />} />
+          <Route path="/products/:category" element={<ProductListing />} />
+          <Route path="/product/:id" element={<ProductDetails />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/history" element={<History />} />
+        </Route>
+
+        {/* AUTH PAGES */}
+        <Route element={<AuthLayout />}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/auth/forget_password" element={<ForgetPassword />} />
+          <Route path="/auth/reset_password/:id" element={<ResetPassword />} />
+        </Route>
+
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
+  );
 }
 
 /* ------------------ App Root ------------------ */
