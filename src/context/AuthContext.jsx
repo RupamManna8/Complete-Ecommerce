@@ -16,6 +16,7 @@ export const AuthProvider = ({ children }) => {
   const [checkoutItems, setCheckoutItems] = useState([]);
   const [previousMail, setPreviousMail] = useState(null);
   const [theme,setTheme] = useState("light");
+  const [isBackendReady,setIsBackendReady] = useState(false)
   const navigate = useNavigate();
  
   useEffect(() => {
@@ -185,6 +186,8 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider
       value={{
+        isBackendReady,
+        setIsBackendReady,
         user,
         isAuthenticated,
         products,

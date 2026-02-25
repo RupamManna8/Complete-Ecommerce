@@ -100,13 +100,15 @@ export const Home = () => {
     offset: ["start start", "end start"],
   });
 
+  const {setIsBackendReady} = useContext(AuthContext)
+
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
   const y = useTransform(scrollYProgress, [0, 0.5], [0, -100]);
 
   useEffect(() => {
     const controller = new AbortController();
-  
+
     const fetchFeaturedProducts = async () => {
       try {
         const response = await fetch(
@@ -122,12 +124,13 @@ export const Home = () => {
         );
   
         const data = await response.json();
-  
+        
         if (!response.ok || !data.success) {
           throw new Error("Failed to fetch featured products");
         }
-  
-        setFeaturedProducts(data.data); // ✅ FIXED
+        
+        setFeaturedProducts(data.data);
+        setIsBackendReady(true)
       } catch (error) {
         if (error.name !== "AbortError") {
           console.error("❌ Error fetching featured products:", error);

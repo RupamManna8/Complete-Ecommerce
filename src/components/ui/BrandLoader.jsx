@@ -60,7 +60,9 @@ export const AppLoader = () => {
           className="text-sm tracking-widest text-gray-600 dark:text-gray-400"
         >
           PREPARING YOUR EXPERIENCE
+          <p className="text-[11px] ml-8 font-serif text-red-500 w-[150px] justify-self-center">May take a minute</p>
         </motion.p>
+        
       </div>
     </div>
   );
